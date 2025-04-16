@@ -23,7 +23,6 @@ schedule_models = load("model_training/model.pkl")
 
 AGE, GENDER, HEIGHT, WEIGHT, GOAL, LEVEL, LOCATION, FIT_SYNC_CHOICE, MANUAL_STEPS = range(9)
 GPT_CHAT = 9
-user_data = {}
 
 
 async def show_main_menu(update: Update):
@@ -48,8 +47,9 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if context.user_data.get("chat_active"):
         return await handle_gpt_message(update, context)
 
-    if text == "📝 Обновить анкету":
-        return await start_survey(update, context)
+    elif text == "📝 Обновить анкету":
+        await update.message.reply_text("👉 Введи команду /update, чтобы обновить анкету.")
+        return ConversationHandler.END
 
     # Если это ответ на выбор "Да/Нет" по Google Fit
     if context.user_data.get("expecting_fit_sync"):
@@ -60,7 +60,7 @@ async def handle_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     elif text == "👤 Моя анкета":
-        await show_user_profile(update)
+        await show_user_profile(update, context)
         return ConversationHandler.END
 
 
@@ -91,7 +91,6 @@ async def start_survey(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     is_update = text in ["/update", "📝 Обновить анкету"]
 
-    # 🖼️ Приветствие показываем всегда
     with open("img.png", "rb") as photo:
         await update.message.reply_photo(
             photo=photo,
@@ -116,14 +115,14 @@ async def start_survey(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await show_main_menu(update)
         return ConversationHandler.END
 
-    # Если это обновление анкеты или новый пользователь
     if is_update:
         delete_user(user_id)
-        user_data.clear()
+        context.user_data.clear()
         await update.message.reply_text("🔁 Анкета сброшена. Давай заполним заново!")
 
     await update.message.reply_text("👉 Сколько тебе лет?")
     return AGE
+
 
 
 def add_noise_to_data(data):
@@ -138,45 +137,31 @@ def add_noise_to_data(data):
 
 # Возраст
 async def get_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["age"] = int(update.message.text)
+    context.user_data["age"] = int(update.message.text)
     await update.message.reply_text("Твой пол? (М/Ж)")
     return GENDER
 
-
-# Пол
 async def get_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    gender_input = update.message.text.upper()
-    if gender_input == "М":
-        gender_input = "M"
-    elif gender_input == "Ж":
-        gender_input = "F"
-    user_data["gender"] = gender_input
+    g = update.message.text.upper()
+    context.user_data["gender"] = "M" if g == "М" else "F"
     await update.message.reply_text("Твой рост (в см)?")
     return HEIGHT
 
-
-# Рост
 async def get_height(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["height"] = int(update.message.text)
+    context.user_data["height"] = int(update.message.text)
     await update.message.reply_text("Твой вес (в кг)?")
     return WEIGHT
 
-
-# Вес
 async def get_weight(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["weight"] = int(update.message.text)
+    context.user_data["weight"] = int(update.message.text)
     reply_keyboard = [["Похудение", "Масса", "Поддержание"]]
-    await update.message.reply_text("Какая у тебя цель?",
-                                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+    await update.message.reply_text("Какая у тебя цель?", reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return GOAL
 
-
-# Цель
 async def get_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["goal"] = update.message.text
+    context.user_data["goal"] = update.message.text
     reply_keyboard = [["Начинающий", "Средний", "Продвинутый"]]
-    await update.message.reply_text("Твой уровень подготовки?",
-                                    reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
+    await update.message.reply_text("Твой уровень подготовки?", reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return LEVEL
 
 def predict_week_schedule(data):
@@ -205,19 +190,26 @@ def predict_week_schedule(data):
 
 # Уровень
 async def get_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["level"] = update.message.text
-
+    context.user_data["level"] = update.message.text
     reply_keyboard = [["Зал", "Дом", "Улица"]]
-    await update.message.reply_text(
-        "🏠 Где ты хочешь заниматься?",
-        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-    )
+    await update.message.reply_text("🏠 Где ты хочешь заниматься?", reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True))
     return LOCATION
 
-
 async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_data["location"] = update.message.text
+    location_input = update.message.text.lower()
+    mapping = {
+        "зал": "Зал",
+        "дом": "Дом",
+        "улица": "Улица"
+    }
+
+    if location_input not in mapping:
+        await update.message.reply_text("❗ Пожалуйста, выбери вариант из предложенных: Зал, Дом или Улица.")
+        return LOCATION
+
+    context.user_data["location"] = mapping[location_input]
     context.user_data["expecting_fit_sync"] = True
+
     reply_keyboard = [["Да", "Нет"]]
     await update.message.reply_text(
         "🔗 Хочешь подключить Google Fit для автоматического определения шагов?",
@@ -226,71 +218,61 @@ async def get_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return FIT_SYNC_CHOICE
 
 
-async def get_manual_steps(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        user_data["steps"] = int(update.message.text)
-    except ValueError:
-        await update.message.reply_text("❗ Введи только число — среднее количество шагов в день:")
-        return MANUAL_STEPS
-
-    return await finalize_profile(update)
-
-
 async def get_fit_sync_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
     answer = update.message.text.lower()
-    user_id = update.message.from_user.id
     context.user_data.pop("expecting_fit_sync", None)
 
     if answer == "да":
         await update.message.reply_text("Открываю окно авторизации Google Fit...")
-
         try:
             from google_fit import get_credentials, get_steps_data
             token = get_credentials()
             steps_list = get_steps_data(token)
             avg_steps = sum(steps_list) // len(steps_list)
-
-            user_data["steps"] = avg_steps
+            context.user_data["steps"] = avg_steps
             await update.message.reply_text(f"✅ Успешно! Среднее: {avg_steps} шагов в день")
-
         except Exception as e:
             await update.message.reply_text(f"⚠️ Ошибка подключения: {e}\nВведи количество шагов вручную:")
             return MANUAL_STEPS
-
     else:
         await update.message.reply_text("Сколько в среднем ты проходишь шагов в день?")
         return MANUAL_STEPS
 
+    return await finalize_profile(update, context)
 
-    return await finalize_profile(update)
+async def get_manual_steps(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        context.user_data["steps"] = int(update.message.text)
+    except ValueError:
+        await update.message.reply_text("❗ Введи только число — среднее количество шагов в день:")
+        return MANUAL_STEPS
+    return await finalize_profile(update, context)
 
-async def finalize_profile(update: Update):
+async def finalize_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-    save_user(user_id, user_data)
+    save_user(user_id, context.user_data)
 
-    steps = user_data.get("steps", 6000)
+    steps = context.user_data.get("steps", 6000)
 
     profile_text = f"""📝 Твоя анкета:
-👤 Возраст: {user_data['age']} лет
-🚻 Пол: {user_data['gender']}
-📏 Рост: {user_data['height']} см
-⚖️ Вес: {user_data['weight']} кг
-🎯 Цель: {user_data['goal']}
-🏋️ Уровень: {user_data['level']}
-📍 Место тренировки: {user_data['location']}
+👤 Возраст: {context.user_data['age']} лет
+🚻 Пол: {context.user_data['gender']}
+📏 Рост: {context.user_data['height']} см
+⚖️ Вес: {context.user_data['weight']} кг
+🎯 Цель: {context.user_data['goal']}
+🏋️ Уровень: {context.user_data['level']}
+📍 Место тренировки: {context.user_data['location']}
 👣 Шагов в день: {steps}
 """
     await update.message.reply_text(profile_text)
 
-    schedule = predict_week_schedule(user_data)
+    schedule = predict_week_schedule(context.user_data)
 
-    plan_text = f"\n📅 Расписание на неделю от AI:\n"
+    plan_text = "\n📅 Расписание на неделю от AI:\n"
     for day, activity in schedule.items():
         plan_text += f"{day}: {activity}\n"
 
     await update.message.reply_text(plan_text)
-
-    # 💡 ВОТ ЭТО — ВАЖНО!
     await show_main_menu(update)
     return ConversationHandler.END
 
@@ -328,7 +310,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(plan_text)
 
 
-async def show_user_profile(update: Update):
+async def show_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user = get_user(user_id)
 
@@ -492,10 +474,9 @@ if __name__ == '__main__':
     app.add_handler(CommandHandler("menu", show_main_menu_command))
     app.add_handler(CommandHandler("profile", profile))
     app.add_handler(CommandHandler("syncfit", syncfit))
+    app.add_handler(CommandHandler("syncfit", syncfit))
 
-    # 👇 Просто один MessageHandler на оставшиеся текстовые сообщения
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_menu))
 
     print("Бот запущен.")
     app.run_polling()
-
