@@ -2,3 +2,4 @@
 users.db
 client_secret.json
 __pycache__/
+"model_training/model.pkl" 
