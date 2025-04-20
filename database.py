@@ -1,6 +1,7 @@
 import sqlite3
 
 def create_table():
+    # TODO: Повторение conn -> cursor -> commit в каждой функции
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     cursor.execute("""
@@ -37,6 +38,7 @@ def save_user(user_id, data):
         data.get("goal"),
         data.get("level"),
         data.get("location"),
+        # TODO: Значение 6000 стоит вынести в константу
         data.get("steps", 6000)
     ))
     conn.commit()
