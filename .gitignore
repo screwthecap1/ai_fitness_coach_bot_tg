@@ -4,3 +4,4 @@ client_secret.json
 __pycache__/
 "model_training/model.pkl" 
 "model_training/model.pkl" 
+.idea

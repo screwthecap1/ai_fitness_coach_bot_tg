@@ -36,6 +36,7 @@ async def show_main_menu(update: Update):
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("Выбери действие:", reply_markup=reply_markup)
 
+# TODO: Необходимо удалить неиспользуемую переменную
 async def show_main_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_main_menu(update)
     return ConversationHandler.END
@@ -276,6 +277,7 @@ async def finalize_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await show_main_menu(update)
     return ConversationHandler.END
 
+# TODO: Необходимо удалить неиспользуемую переменную
 async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user = get_user(user_id)
@@ -309,7 +311,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(plan_text)
 
-
+# TODO: Необходимо удалить неиспользуемую переменную
 async def show_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user = get_user(user_id)
@@ -330,11 +332,12 @@ async def show_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """
     await update.message.reply_text(profile_text, parse_mode="Markdown")
 
-
+# TODO: Необходимо удалить неиспользуемую переменную
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("❌ Анкета отменена. Введи /start, чтобы начать заново.")
     return ConversationHandler.END
 
+# TODO: Необходимо удалить неиспользуемую переменную
 async def syncfit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔗 Подключаюсь к Google Fit...")
 
@@ -409,6 +412,7 @@ async def handle_gpt_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
     except Exception as e:
         await update.message.reply_text(f"❌ Ошибка: {e}")
 
+# TODO: Необходимо удалить неиспользуемую переменную
 async def regenerate_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     user = get_user(user_id)
